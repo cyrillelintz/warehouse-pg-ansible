@@ -445,3 +445,174 @@ ansible-playbook playbook.yml -e "whpg_upgrade=always-upgrade-to-latest-minor"
 ```
 
 This will apply the new setting only for this run of the playbook, making it safe to apply potential updates when convenient.
+
+## Performance
+
+### AWS Instance Types
+
+Instance Type: m7a.medium
+1x vCPU, 4 GB RAM
+
+Instance Type: m7a.large
+2x vCPU, 8 GB RAM
+
+Instance Type: m7a.xlarge
+4x vCPU, 16 GB RAM
+
+Instance Type: m7a.2xlarge
+8x vCPU, 32 GB RAM
+
+### Tests
+
+Tests run with:
+
+```
+time ansible-playbook --extra-vars "whpg_seg_num=2" --extra-vars "whpg_seg_enable_mirrors=false" --extra-vars "whpg_resource_management=group-v2" playbook.yml
+```
+
+The `whpg_seg_num` parameter is adapted, see the output below.
+
+The `forks` parameter is set to `10` (default: `10`), ssh options used:
+
+```
+ssh_args = -o ControlMaster=auto -o ControlPersist=10s -o StrictHostKeyChecking=no
+```
+
+All test did only run once. All tests ran on the code version 2026-05-21, deploying the EDB repository (role `edb-repository`), deploying the cluster (role `warehouse-pg`), creating cluster stats (role `warehouse-pg-cluster-data`), no expansions configured, no WEM (role `warehouse-pg-enterprise-manager`).
+
+Note: runtine for tests are not linear, several factors can affect the runtime:
+
+- network roundtrip time
+- general ssh delays and retries
+- repository delay (all EDB repository operations are serialized)
+- load on the AWS hosts, influencing the virtual machine performance
+- ssh jumphost delays (EDB is using a jumphost to access AWS infrastructure)
+
+#### m7a.medium
+
+2 segment hosts, 2 segments, 1st run: 8m0s
+2 segment hosts, 2 segments, 2nd run: 4m56s
+2 segment hosts, 4 segments, 1st run: 8m3s
+2 segment hosts, 4 segments, 2nd run: 5m7s
+
+4 segment hosts, 2 segments, 1st run: 9m58s
+4 segment hosts, 2 segments, 2nd run: 5m57s
+4 segment hosts, 4 segments, 1st run: 10m29s
+4 segment hosts, 4 segments, 2nd run: 5m55s
+
+10 segment hosts, 2 segments, 1st run: 17m51s
+10 segment hosts, 2 segments, 2nd run: 10m27s
+10 segment hosts, 4 segments, 1st run: 19m26s
+10 segment hosts, 4 segments, 2nd run: 10m19s
+
+20 segment hosts, 2 segments, 1st run: 28m53s
+20 segment hosts, 2 segments, 2nd run: 15m0s
+20 segment hosts, 4 segments, 1st run: 30m44s
+20 segment hosts, 4 segments, 2nd run: 15m5s
+
+4 GB RAM is not enough for the `coordinator` to manage 40 segments, operation times out.
+
+In general, `m7a.medium` instances are too small to run 2 WarehousePG instances. Deployment will occasionally time out.
+
+#### m7a.large
+
+2 segment hosts, 2 segments, 1st run: 7m48s
+2 segment hosts, 2 segments, 2nd run: 5m0s
+2 segment hosts, 4 segments, 1st run: 7m49s
+2 segment hosts, 4 segments, 2nd run: 5m2s
+
+4 segment hosts, 2 segments, 1st run: 9m48s
+4 segment hosts, 2 segments, 2nd run: 5m48s
+4 segment hosts, 4 segments, 1st run: 9m17s
+4 segment hosts, 4 segments, 2nd run: 5m56s
+
+10 segment hosts, 2 segments, 1st run: 16m48s
+10 segment hosts, 2 segments, 2nd run: 9m30s
+10 segment hosts, 4 segments, 1st run: 17m21s
+10 segment hosts, 4 segments, 2nd run: 9m27s
+
+20 segment hosts, 2 segments, 1st run: 31m23s
+20 segment hosts, 2 segments, 2nd run: 15m8s
+20 segment hosts, 4 segments, 1st run: 30m54s
+20 segment hosts, 4 segments, 2nd run: 15m34s
+
+40 segment hosts, 2 segments, 1st run: 56m45s
+40 segment hosts, 2 segments, 2nd run: 27m31s
+40 segment hosts, 4 segments, 1st run: 50m40s
+40 segment hosts, 4 segments, 2nd run: 21m13s
+
+#### m7a.xlarge
+
+2 segment hosts, 2 segments, 1st run: 7m12s
+2 segment hosts, 2 segments, 2nd run: 4m26s
+2 segment hosts, 4 segments, 1st run: 7m28s
+2 segment hosts, 4 segments, 2nd run: 4m30s
+
+4 segment hosts, 2 segments, 1st run: 8m10s
+4 segment hosts, 2 segments, 2nd run: 4m56s
+4 segment hosts, 4 segments, 1st run: 8m50s
+4 segment hosts, 4 segments, 2nd run: 4m58s
+
+10 segment hosts, 2 segments, 1st run: 15m3s
+10 segment hosts, 2 segments, 2nd run: 7m56s
+10 segment hosts, 4 segments, 1st run: 16m35s
+10 segment hosts, 4 segments, 2nd run: 7m58s
+
+20 segment hosts, 2 segments, 1st run: 26m40s
+20 segment hosts, 2 segments, 2nd run: 12m13s
+20 segment hosts, 4 segments, 1st run: 27m36s
+20 segment hosts, 4 segments, 2nd run: 13m0s
+
+40 segment hosts, 2 segments, 1st run: 50m52s
+40 segment hosts, 2 segments, 2nd run: 24m22s
+40 segment hosts, 4 segments, 1st run: 52m8s
+40 segment hosts, 4 segments, 2nd run: 21m20s
+
+#### m7a.2xlarge
+
+2 segment hosts, 2 segments, 1st run: 7m3s
+2 segment hosts, 2 segments, 2nd run: 4m52s
+2 segment hosts, 4 segments, 1st run: 7m48s
+2 segment hosts, 4 segments, 2nd run: 4m32s
+
+4 segment hosts, 2 segments, 1st run: 8m32s
+4 segment hosts, 2 segments, 2nd run: 5m1s
+4 segment hosts, 4 segments, 1st run: 8m39s
+4 segment hosts, 4 segments, 2nd run: 4m59s
+
+10 segment hosts, 2 segments, 1st run: 15m17s
+10 segment hosts, 2 segments, 2nd run: 8m16s
+10 segment hosts, 4 segments, 1st run: 16m27s
+10 segment hosts, 4 segments, 2nd run: 8m5s
+10 segment hosts, 6 segments, 1st run: 17m38s
+10 segment hosts, 6 segments, 2nd run: 8m7s
+10 segment hosts, 8 segments, 1st run: 17m10s
+10 segment hosts, 8 segments, 2nd run: 8m6s
+
+20 segment hosts, 2 segments, 1st run: 27m21s
+20 segment hosts, 2 segments, 2nd run: 12m23s
+20 segment hosts, 4 segments, 1st run: 31m50s
+20 segment hosts, 4 segments, 2nd run: 16m46s
+20 segment hosts, 6 segments, 1st run: 29m34s
+20 segment hosts, 6 segments, 2nd run: 13m12s
+20 segment hosts, 8 segments, 1st run: 34m2s
+20 segment hosts, 8 segments, 2nd run: 15m46s
+
+40 segment hosts, 2 segments, 1st run: 62m13s
+40 segment hosts, 2 segments, 2nd run: 34m21s
+40 segment hosts, 4 segments, 1st run: 66m42s
+40 segment hosts, 4 segments, 2nd run: 38m54s
+40 segment hosts, 6 segments, 1st run: 65m25s
+40 segment hosts, 6 segments, 2nd run: 36m48s
+40 segment hosts, 8 segments, 1st run: 68m53s
+40 segment hosts, 8 segments, 2nd run: 33m59s
+
+##### Increase forks parameter
+
+The following tests were run with an increased `forks` parameter, allowing for more parallel operations on the Ansible controller host (Apple M1 Max) while consuming more resources on the controller.
+
+40 segment hosts, 8 segments, forks=21 (running 20 segments in parallel, plus coordinator), 1st run: 71m22s
+40 segment hosts, 8 segments, forks=21 (running 20 segments in parallel, plus coordinator), 2nd run: 37m33s
+
+40 segment hosts, 8 segments, forks=41 (running 40 segments in parallel, plus coordinator), 1st run: 72m40s
+40 segment hosts, 8 segments, forks=41 (running 40 segments in parallel, plus coordinator), 2nd run: 31m11s

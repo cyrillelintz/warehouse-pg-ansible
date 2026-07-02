@@ -26,6 +26,7 @@
 - name: Prepare all servers for database installation
   hosts: whpg_clusters
   become: true
+  any_errors_fatal: true
   tasks:
     # create the data directory on all hosts
     # the warehouse-pg role requires that $whpg_data_directory already exists
